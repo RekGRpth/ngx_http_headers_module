@@ -1,40 +1,36 @@
 #include <ngx_http.h>
 
+typedef struct {
+    ngx_uint_t header;
+} ngx_http_header_location_conf_t;
+
 ngx_module_t ngx_http_header_module;
 
 static ngx_int_t ngx_http_header_join_var(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data) {
     ngx_array_t *a = (ngx_array_t *)data;
     ngx_str_t *elts = a->elts;
     v->len = 0;
-    ngx_flag_t f = 0;
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
-//            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%i] = %V:%V", i, &header[i].key, &header[i].value);
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
                 if (elts[j].len == header[i].key.len && !ngx_strncasecmp(elts[j].data, header[i].key.data, header[i].key.len)) {
-                    if (f) v->len += sizeof("\n") - 1;
-                    v->len += header[i].key.len + sizeof(": ") - 1 + header[i].value.len;
-                    f = 1;
+                    v->len += sizeof(size_t) + header[i].key.len + sizeof(size_t) + header[i].value.len;
                 }
             }
         }
     }
     if (!(v->data = ngx_pnalloc(r->pool, v->len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
     u_char *p = v->data;
-    f = 0;
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
-//            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%i] = %V:%V", i, &header[i].key, &header[i].value);
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
                 if (elts[j].len == header[i].key.len && !ngx_strncasecmp(elts[j].data, header[i].key.data, header[i].key.len)) {
-                    if (f) *p++ = '\n';
-                    p = ngx_copy(p, header[i].key.data, header[i].key.len);
-                    *p++ = ':';
-                    *p++ = ' ';
-                    p = ngx_copy(p, header[i].value.data, header[i].value.len);
-                    f = 1;
+                    *(size_t *)p = header[i].key.len;
+                    p = ngx_copy(p + sizeof(size_t), header[i].key.data, header[i].key.len);
+                    *(size_t *)p = header[i].value.len;
+                    p = ngx_copy(p + sizeof(size_t), header[i].value.data, header[i].value.len);
                 }
             }
         }
@@ -48,7 +44,7 @@ static ngx_int_t ngx_http_header_join_var(ngx_http_request_t *r, ngx_http_variab
 
 static char *ngx_http_header_join_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_str_t *elts = cf->args->elts;
-    if (elts[1].data[0] != '$') { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "invalid variable name \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
+    if (elts[1].data[0] != '$') { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: invalid variable name \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
     elts[1].len--;
     elts[1].data++;
     ngx_http_variable_t *v = ngx_http_add_variable(cf, &elts[1], NGX_HTTP_VAR_CHANGEABLE);
@@ -65,6 +61,18 @@ static char *ngx_http_header_join_conf(ngx_conf_t *cf, ngx_command_t *cmd, void 
     return NGX_CONF_OK;
 }
 
+static char *ngx_http_header_split_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+    ngx_str_t *elts = cf->args->elts;
+    if (elts[1].data[0] != '$') { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: invalid variable name \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
+    elts[1].len--;
+    elts[1].data++;
+    ngx_int_t index = ngx_http_get_variable_index(cf, &elts[1]);
+    if (index == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: invalid variable \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
+    ngx_http_header_location_conf_t *location_conf = conf;
+    location_conf->header = (ngx_uint_t) index;
+    return NGX_CONF_OK;
+}
+
 static ngx_command_t ngx_http_header_commands[] = {
   { .name = ngx_string("header_join"),
     .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_2MORE,
@@ -72,18 +80,68 @@ static ngx_command_t ngx_http_header_commands[] = {
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = 0,
     .post = NULL },
+  { .name = ngx_string("header_split"),
+    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+    .set = ngx_http_header_split_conf,
+    .conf = NGX_HTTP_LOC_CONF_OFFSET,
+    .offset = 0,
+    .post = NULL },
     ngx_null_command
 };
 
+static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
+
+static ngx_int_t ngx_http_header_filter(ngx_http_request_t *r) {
+    ngx_http_header_location_conf_t *location_conf = ngx_http_get_module_loc_conf(r, ngx_http_header_module);
+    if (!location_conf->header) return ngx_http_next_header_filter(r);
+    ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location_conf->header);
+    if (!header || !header->data || !header->len) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+    for (u_char *p = header->data; p < header->data + header->len; ) {
+        size_t len = *(size_t *)p;
+        p += sizeof(size_t);
+        ngx_str_t key = {len, p};
+        p += len;
+        len = *(size_t *)p;
+        p += sizeof(size_t);
+        ngx_str_t value = {len, p};
+        p += len;
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
+        ngx_table_elt_t *h = ngx_list_push(&r->headers_in.headers);
+        if (!h) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+        h->key = key;
+        h->value = value;
+    }
+    return ngx_http_next_header_filter(r);
+}
+
+static ngx_int_t ngx_http_header_postconfiguration(ngx_conf_t *cf) {
+    ngx_http_next_header_filter = ngx_http_top_header_filter;
+    ngx_http_top_header_filter = ngx_http_header_filter;
+    return NGX_OK;
+}
+
+static void *ngx_http_header_create_loc_conf(ngx_conf_t *cf) {
+    ngx_http_header_location_conf_t *location_conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_header_location_conf_t));
+    if (!location_conf) return NULL;
+    return location_conf;
+}
+
+static char *ngx_http_header_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child) {
+    ngx_http_header_location_conf_t *prev = parent;
+    ngx_http_header_location_conf_t *conf = child;
+    ngx_conf_merge_uint_value(conf->header, prev->header, 0);
+    return NGX_CONF_OK;
+}
+
 static ngx_http_module_t ngx_http_header_module_ctx = {
     .preconfiguration = NULL,
-    .postconfiguration = NULL,
+    .postconfiguration = ngx_http_header_postconfiguration,
     .create_main_conf = NULL,
     .init_main_conf = NULL,
     .create_srv_conf = NULL,
     .merge_srv_conf = NULL,
-    .create_loc_conf = NULL,
-    .merge_loc_conf = NULL
+    .create_loc_conf = ngx_http_header_create_loc_conf,
+    .merge_loc_conf = ngx_http_header_merge_loc_conf
 };
 
 ngx_module_t ngx_http_header_module = {
