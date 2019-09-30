@@ -110,6 +110,7 @@ static ngx_int_t ngx_http_header_filter(ngx_http_request_t *r) {
         if (!h) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
         h->key = key;
         h->value = value;
+        if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = h;
     }
     return ngx_http_next_header_filter(r);
 }
