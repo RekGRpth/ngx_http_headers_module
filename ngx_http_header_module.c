@@ -14,7 +14,7 @@ static ngx_int_t ngx_http_header_join_var(ngx_http_request_t *r, ngx_http_variab
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
-                if (elts[j].len == header[i].key.len && !ngx_strncasecmp(elts[j].data, header[i].key.data, header[i].key.len)) {
+                if ((elts[j].len == header[i].key.len || elts[j].data[elts[j].len - 1] == '*') && !ngx_strncasecmp(elts[j].data, header[i].key.data, elts[j].data[elts[j].len - 1] == '*' ? elts[j].len - 1: elts[j].len)) {
                     v->len += sizeof(size_t) + header[i].key.len + sizeof(size_t) + header[i].value.len;
                 }
             }
@@ -26,7 +26,7 @@ static ngx_int_t ngx_http_header_join_var(ngx_http_request_t *r, ngx_http_variab
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
-                if (elts[j].len == header[i].key.len && !ngx_strncasecmp(elts[j].data, header[i].key.data, header[i].key.len)) {
+                if ((elts[j].len == header[i].key.len || elts[j].data[elts[j].len - 1] == '*') && !ngx_strncasecmp(elts[j].data, header[i].key.data, elts[j].data[elts[j].len - 1] == '*' ? elts[j].len - 1: elts[j].len)) {
                     *(size_t *)p = header[i].key.len;
                     p = ngx_copy(p + sizeof(size_t), header[i].key.data, header[i].key.len);
                     *(size_t *)p = header[i].value.len;
