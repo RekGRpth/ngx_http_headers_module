@@ -6,7 +6,8 @@ typedef struct {
 
 ngx_module_t ngx_http_headers_module;
 
-static ngx_int_t ngx_http_headers_save_var(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data) {
+static ngx_int_t ngx_http_headers_save_get_handler(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data) {
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_array_t *a = (ngx_array_t *)data;
     ngx_str_t *elts = a->elts;
     v->len = 0;
@@ -49,7 +50,7 @@ static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     elts[1].data++;
     ngx_http_variable_t *v = ngx_http_add_variable(cf, &elts[1], NGX_HTTP_VAR_CHANGEABLE);
     if (!v) return NGX_CONF_ERROR;
-    v->get_handler = ngx_http_headers_save_var;
+    v->get_handler = ngx_http_headers_save_get_handler;
     ngx_array_t *a = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(ngx_str_t));
     if (!a) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_CONF_ERROR; }
     for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
@@ -92,6 +93,7 @@ static ngx_command_t ngx_http_headers_commands[] = {
 static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 
 static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_headers_location_conf_t *location_conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
     if (!location_conf->header) return ngx_http_next_header_filter(r);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location_conf->header);
@@ -134,7 +136,7 @@ static char *ngx_http_headers_merge_loc_conf(ngx_conf_t *cf, void *parent, void 
     return NGX_CONF_OK;
 }
 
-static ngx_http_module_t ngx_http_headers_module_ctx = {
+static ngx_http_module_t ngx_http_headers_ctx = {
     .preconfiguration = NULL,
     .postconfiguration = ngx_http_headers_postconfiguration,
     .create_main_conf = NULL,
@@ -147,7 +149,7 @@ static ngx_http_module_t ngx_http_headers_module_ctx = {
 
 ngx_module_t ngx_http_headers_module = {
     NGX_MODULE_V1,
-    .ctx = &ngx_http_headers_module_ctx,
+    .ctx = &ngx_http_headers_ctx,
     .commands = ngx_http_headers_commands,
     .type = NGX_HTTP_MODULE,
     .init_master = NULL,
