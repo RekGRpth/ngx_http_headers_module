@@ -97,7 +97,7 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_http_headers_location_conf_t *location_conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
     if (!location_conf->header) return ngx_http_next_header_filter(r);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location_conf->header);
-    if (!header || !header->data || !header->len) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+    if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     for (u_char *p = header->data; p < header->data + header->len; ) {
         size_t len = *(size_t *)p;
         p += sizeof(size_t);
