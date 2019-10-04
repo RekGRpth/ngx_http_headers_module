@@ -100,19 +100,21 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     for (u_char *p = header->data; p < header->data + header->len; ) {
         size_t len = *(size_t *)p;
+//        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "key len = %ul", len);
         p += sizeof(size_t);
         ngx_str_t key = {len, p};
-        p += len;
+        if ((p += len) >= header->data + header->len - sizeof(size_t)) break;
         len = *(size_t *)p;
+//        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "value len = %ul", len);
         p += sizeof(size_t);
         ngx_str_t value = {len, p};
         p += len;
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
-        ngx_table_elt_t *h = ngx_list_push(&r->headers_in.headers);
-        if (!h) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
-        h->key = key;
-        h->value = value;
-        if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = h;
+        ngx_table_elt_t *table_elt = ngx_list_push(&r->headers_in.headers);
+        if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+        table_elt->key = key;
+        table_elt->value = value;
+        if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
     }
     return ngx_http_next_header_filter(r);
 }
