@@ -26,12 +26,15 @@ static ngx_int_t ngx_http_headers_save_get_handler(ngx_http_request_t *r, ngx_ht
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
+            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%d] = %V:%V", i, &header[i].key, &header[i].value);
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
+                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "elts[%d] = %V", j, &elts[j]);
                 if ((elts[j].len == header[i].key.len || elts[j].data[elts[j].len - 1] == '*') && !ngx_strncasecmp(elts[j].data, header[i].key.data, elts[j].data[elts[j].len - 1] == '*' ? elts[j].len - 1: elts[j].len)) {
                     *(size_t *)p = header[i].key.len;
                     p = ngx_copy(p + sizeof(size_t), header[i].key.data, header[i].key.len);
                     *(size_t *)p = header[i].value.len;
                     p = ngx_copy(p + sizeof(size_t), header[i].value.data, header[i].value.len);
+                    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%d] = %V:%V", i, &header[i].key, &header[i].value);
                 }
             }
         }
