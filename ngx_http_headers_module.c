@@ -21,14 +21,12 @@ static ngx_int_t ngx_http_headers_save_get_handler(ngx_http_request_t *r, ngx_ht
             }
         }
     }
-    if (!(v->data = ngx_pnalloc(r->pool, v->len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+    if (!(v->data = ngx_pnalloc(r->pool, v->len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
     u_char *p = v->data;
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
-//            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%d] = %V:%V", i, &header[i].key, &header[i].value);
             for (ngx_uint_t j = 0; j < a->nelts; j++) {
-//                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "elts[%d] = %V", j, &elts[j]);
                 if ((elts[j].len == header[i].key.len || elts[j].data[elts[j].len - 1] == '*') && !ngx_strncasecmp(elts[j].data, header[i].key.data, elts[j].data[elts[j].len - 1] == '*' ? elts[j].len - 1: elts[j].len)) {
                     *(size_t *)p = header[i].key.len;
                     p = ngx_copy(p + sizeof(size_t), header[i].key.data, header[i].key.len);
@@ -39,7 +37,7 @@ static ngx_int_t ngx_http_headers_save_get_handler(ngx_http_request_t *r, ngx_ht
             }
         }
     }
-    if (v->len != p - v->data) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+    if (v->len != p - v->data) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "v->len != p - v->data"); return NGX_ERROR; }
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
@@ -55,10 +53,10 @@ static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     if (!v) return NGX_CONF_ERROR;
     v->get_handler = ngx_http_headers_save_get_handler;
     ngx_array_t *a = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(ngx_str_t));
-    if (!a) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_CONF_ERROR; }
+    if (!a) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_array_create"); return NGX_CONF_ERROR; }
     for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
         ngx_str_t *s = ngx_array_push(a);
-        if (!s) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_CONF_ERROR; }
+        if (!s) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_array_push"); return NGX_CONF_ERROR; }
         *s = elts[i];
     }
     v->data = (uintptr_t)a;
@@ -103,18 +101,16 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
         size_t len = *(size_t *)p;
-//        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "key len = %ul", len);
         p += sizeof(size_t);
         ngx_str_t key = {len, p};
         if ((p += len) >= header->data + header->len - sizeof(size_t)) break;
         len = *(size_t *)p;
-//        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "value len = %ul", len);
         p += sizeof(size_t);
         ngx_str_t value = {len, p};
         p += len;
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
         ngx_table_elt_t *table_elt = ngx_list_push(&r->headers_in.headers);
-        if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "header: %s:%d", __FILE__, __LINE__); return NGX_ERROR; }
+        if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_list_push"); return NGX_ERROR; }
         table_elt->key = key;
         table_elt->value = value;
         if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
