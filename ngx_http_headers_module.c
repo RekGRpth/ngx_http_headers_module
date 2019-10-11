@@ -126,7 +126,7 @@ static ngx_int_t ngx_http_headers_postconfiguration(ngx_conf_t *cf) {
 
 static void *ngx_http_headers_create_loc_conf(ngx_conf_t *cf) {
     ngx_http_headers_location_conf_t *location_conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_headers_location_conf_t));
-    if (!location_conf) return NULL;
+    if (!location_conf) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_pcalloc"); return NULL; }
     return location_conf;
 }
 
