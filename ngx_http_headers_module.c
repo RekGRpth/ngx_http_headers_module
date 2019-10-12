@@ -43,11 +43,11 @@ static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *va
 
 static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_array_t *data = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(ngx_str_t));
-    if (!data) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_array_create"); return NGX_CONF_ERROR; }
+    if (!data) return "!ngx_array_create";
     ngx_str_t *elts = cf->args->elts;
     for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
         ngx_str_t *str = ngx_array_push(data);
-        if (!str) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_array_push"); return NGX_CONF_ERROR; }
+        if (!str) return "!ngx_array_push";
         *str = elts[i];
     }
     ndk_set_var_t filter = {NDK_SET_VAR_DATA, ngx_http_headers_save_func, 0, data};
@@ -56,11 +56,11 @@ static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
 
 static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_str_t *elts = cf->args->elts;
-    if (elts[1].data[0] != '$') { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: invalid variable name \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
+    if (elts[1].data[0] != '$') return "invalid variable name";
     elts[1].len--;
     elts[1].data++;
     ngx_int_t index = ngx_http_get_variable_index(cf, &elts[1]);
-    if (index == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "header: invalid variable \"%V\"", &elts[1]); return NGX_CONF_ERROR; }
+    if (index == NGX_ERROR) return "invalid variable";
     ngx_http_headers_location_conf_t *location_conf = conf;
     location_conf->header = (ngx_uint_t) index;
     return NGX_CONF_OK;
