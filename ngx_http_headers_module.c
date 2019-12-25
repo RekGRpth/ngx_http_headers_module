@@ -2,6 +2,8 @@
 
 typedef struct {
     ngx_uint_t header;
+    ngx_str_t key;
+    ngx_http_complex_value_t value;
 } ngx_http_headers_location_conf_t;
 
 ngx_module_t ngx_http_headers_module;
@@ -63,6 +65,14 @@ static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     if (index == NGX_ERROR) return "invalid variable";
     ngx_http_headers_location_conf_t *location_conf = conf;
     location_conf->header = (ngx_uint_t) index;
+    if (cf->args->nelts <= 2) return NGX_CONF_OK;
+    location_conf->key = elts[2];
+    ngx_http_compile_complex_value_t ccv;
+    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+    ccv.cf = cf;
+    ccv.value = &elts[3];
+    ccv.complex_value = &location_conf->value;
+    if (ngx_http_compile_complex_value(&ccv) != NGX_OK) return "ngx_http_compile_complex_value != NGX_OK";
     return NGX_CONF_OK;
 }
 
@@ -74,7 +84,7 @@ static ngx_command_t ngx_http_headers_commands[] = {
     .offset = 0,
     .post = NULL },
   { .name = ngx_string("headers_load"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1|NGX_CONF_TAKE3,
     .set = ngx_http_headers_load_conf,
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = 0,
@@ -90,6 +100,7 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     if (!location_conf->header) return ngx_http_next_header_filter(r);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location_conf->header);
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
+    ngx_int_t rc = location_conf->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
     for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
         size_t len = ((*(size_t *)p) << 48) >> 48;
         p += sizeof(size_t);
@@ -105,7 +116,13 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
         table_elt->key = key;
         table_elt->value = value;
         if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
+        if (location_conf->key.len && location_conf->key.len == key.len && !ngx_strncasecmp(location_conf->key.data, key.data, key.len)) {
+            ngx_str_t v;
+            if (ngx_http_complex_value(r, &location_conf->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
+            if (v.len == value.len && !ngx_strncasecmp(value.data, v.data, v.len)) rc = NGX_OK;
+        }
     }
+    if (rc != NGX_OK) r->headers_out.status = NGX_HTTP_FORBIDDEN;
     return ngx_http_next_header_filter(r);
 }
 
