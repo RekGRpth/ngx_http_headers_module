@@ -115,6 +115,7 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
         if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_list_push"); return NGX_ERROR; }
         table_elt->key = key;
         table_elt->value = value;
+        table_elt->hash = 1;
         if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
         if (location_conf->key.len && location_conf->key.len == key.len && !ngx_strncasecmp(location_conf->key.data, key.data, key.len)) {
             ngx_str_t v;
