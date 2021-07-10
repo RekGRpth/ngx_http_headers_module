@@ -4,7 +4,7 @@ typedef struct {
     ngx_uint_t header;
     ngx_str_t key;
     ngx_http_complex_value_t value;
-} ngx_http_headers_location_conf_t;
+} ngx_http_headers_location_t;
 
 ngx_module_t ngx_http_headers_module;
 
@@ -44,9 +44,9 @@ static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *va
 }
 
 static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-    ngx_array_t *data = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(ngx_str_t));
-    if (!data) return "!ngx_array_create";
     ngx_str_t *elts = cf->args->elts;
+    ngx_array_t *data = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(*elts));
+    if (!data) return "!ngx_array_create";
     for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
         ngx_str_t *str = ngx_array_push(data);
         if (!str) return "!ngx_array_push";
@@ -63,15 +63,15 @@ static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     elts[1].data++;
     ngx_int_t index = ngx_http_get_variable_index(cf, &elts[1]);
     if (index == NGX_ERROR) return "invalid variable";
-    ngx_http_headers_location_conf_t *location_conf = conf;
-    location_conf->header = (ngx_uint_t) index;
+    ngx_http_headers_location_t *location = conf;
+    location->header = (ngx_uint_t) index;
     if (cf->args->nelts <= 2) return NGX_CONF_OK;
-    location_conf->key = elts[2];
+    location->key = elts[2];
     ngx_http_compile_complex_value_t ccv;
-    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+    ngx_memzero(&ccv, sizeof(ccv));
     ccv.cf = cf;
     ccv.value = &elts[3];
-    ccv.complex_value = &location_conf->value;
+    ccv.complex_value = &location->value;
     if (ngx_http_compile_complex_value(&ccv) != NGX_OK) return "ngx_http_compile_complex_value != NGX_OK";
     return NGX_CONF_OK;
 }
@@ -96,11 +96,11 @@ static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 
 static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
-    ngx_http_headers_location_conf_t *location_conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
-    if (!location_conf->header) return ngx_http_next_header_filter(r);
-    ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location_conf->header);
+    ngx_http_headers_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
+    if (!location->header) return ngx_http_next_header_filter(r);
+    ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location->header);
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
-    ngx_int_t rc = location_conf->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
+    ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
     for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
         size_t len = ((*(size_t *)p) << 48) >> 48;
         p += sizeof(size_t);
@@ -117,9 +117,9 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
         table_elt->value = value;
         table_elt->hash = 1;
         if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
-        if (location_conf->key.len && location_conf->key.len == key.len && !ngx_strncasecmp(location_conf->key.data, key.data, key.len)) {
+        if (location->key.len && location->key.len == key.len && !ngx_strncasecmp(location->key.data, key.data, key.len)) {
             ngx_str_t v;
-            if (ngx_http_complex_value(r, &location_conf->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
+            if (ngx_http_complex_value(r, &location->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
             if (v.len == value.len && !ngx_strncasecmp(value.data, v.data, v.len)) rc = NGX_OK;
         }
     }
@@ -134,14 +134,14 @@ static ngx_int_t ngx_http_headers_postconfiguration(ngx_conf_t *cf) {
 }
 
 static void *ngx_http_headers_create_loc_conf(ngx_conf_t *cf) {
-    ngx_http_headers_location_conf_t *location_conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_headers_location_conf_t));
-    if (!location_conf) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_pcalloc"); return NULL; }
-    return location_conf;
+    ngx_http_headers_location_t *location = ngx_pcalloc(cf->pool, sizeof(*location));
+    if (!location) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_pcalloc"); return NULL; }
+    return location;
 }
 
 static char *ngx_http_headers_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child) {
-    ngx_http_headers_location_conf_t *prev = parent;
-    ngx_http_headers_location_conf_t *conf = child;
+    ngx_http_headers_location_t *prev = parent;
+    ngx_http_headers_location_t *conf = child;
     ngx_conf_merge_uint_value(conf->header, prev->header, 0);
     return NGX_CONF_OK;
 }
