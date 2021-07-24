@@ -6,6 +6,10 @@ typedef struct {
     ngx_http_complex_value_t value;
 } ngx_http_headers_location_t;
 
+typedef struct {
+    ngx_flag_t enable;
+} ngx_http_headers_main_t;
+
 ngx_module_t ngx_http_headers_module;
 
 static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *val, void *data) {
@@ -73,6 +77,8 @@ static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     ccv.value = &elts[3];
     ccv.complex_value = &location->value;
     if (ngx_http_compile_complex_value(&ccv) != NGX_OK) return "ngx_http_compile_complex_value != NGX_OK";
+    ngx_http_headers_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_headers_module);
+    main->enable = 1;
     return NGX_CONF_OK;
 }
 
@@ -128,9 +134,17 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
 }
 
 static ngx_int_t ngx_http_headers_postconfiguration(ngx_conf_t *cf) {
+    ngx_http_headers_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_headers_module);
+    if (!main->enable) return NGX_OK;
     ngx_http_next_header_filter = ngx_http_top_header_filter;
     ngx_http_top_header_filter = ngx_http_headers_filter;
     return NGX_OK;
+}
+
+static void *ngx_http_headers_create_main_conf(ngx_conf_t *cf) {
+    ngx_http_headers_main_t *main = ngx_pcalloc(cf->pool, sizeof(*main));
+    if (!main) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_pcalloc"); return NULL; }
+    return main;
 }
 
 static void *ngx_http_headers_create_loc_conf(ngx_conf_t *cf) {
@@ -149,7 +163,7 @@ static char *ngx_http_headers_merge_loc_conf(ngx_conf_t *cf, void *parent, void 
 static ngx_http_module_t ngx_http_headers_ctx = {
     .preconfiguration = NULL,
     .postconfiguration = ngx_http_headers_postconfiguration,
-    .create_main_conf = NULL,
+    .create_main_conf = ngx_http_headers_create_main_conf,
     .init_main_conf = NULL,
     .create_srv_conf = NULL,
     .merge_srv_conf = NULL,
