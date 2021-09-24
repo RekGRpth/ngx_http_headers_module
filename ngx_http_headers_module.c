@@ -101,9 +101,9 @@ static ngx_command_t ngx_http_headers_commands[] = {
 static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 
 static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_headers_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
     if (!location->header) return ngx_http_next_header_filter(r);
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location->header);
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
