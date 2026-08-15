@@ -153,6 +153,7 @@ static void *ngx_http_headers_create_main_conf(ngx_conf_t *cf) {
 static void *ngx_http_headers_create_loc_conf(ngx_conf_t *cf) {
     ngx_http_headers_location_t *location = ngx_pcalloc(cf->pool, sizeof(*location));
     if (!location) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "!ngx_pcalloc"); return NULL; }
+    location->header = NGX_CONF_UNSET_UINT;
     return location;
 }
 
@@ -160,6 +161,10 @@ static char *ngx_http_headers_merge_loc_conf(ngx_conf_t *cf, void *parent, void 
     ngx_http_headers_location_t *prev = parent;
     ngx_http_headers_location_t *conf = child;
     ngx_conf_merge_uint_value(conf->header, prev->header, 0);
+    if (!conf->key.len) {
+        conf->key = prev->key;
+        conf->value = prev->value;
+    }
     return NGX_CONF_OK;
 }
 
