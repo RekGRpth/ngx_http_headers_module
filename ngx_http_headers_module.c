@@ -107,7 +107,7 @@ static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 
 static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_http_headers_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
-    if (!location->header) return ngx_http_next_header_filter(r);
+    if (location->header == NGX_CONF_UNSET_UINT) return ngx_http_next_header_filter(r);
     if (ngx_http_get_module_ctx(r, ngx_http_headers_module)) return ngx_http_next_header_filter(r);
     ngx_http_set_ctx(r, (void *) 1, ngx_http_headers_module);
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
@@ -164,7 +164,7 @@ static void *ngx_http_headers_create_loc_conf(ngx_conf_t *cf) {
 static char *ngx_http_headers_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child) {
     ngx_http_headers_location_t *prev = parent;
     ngx_http_headers_location_t *conf = child;
-    ngx_conf_merge_uint_value(conf->header, prev->header, 0);
+    ngx_conf_merge_uint_value(conf->header, prev->header, NGX_CONF_UNSET_UINT);
     if (!conf->key.len) {
         conf->key = prev->key;
         conf->value = prev->value;
