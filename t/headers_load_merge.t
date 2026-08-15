@@ -12,7 +12,6 @@ __DATA__
 === TEST 1: a child location without its own headers_load must still inherit
 the parent's key/value validation, not just the variable index
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config
@@ -34,7 +33,6 @@ GET /outer/inner
 
 === TEST 2: same inherited validation lets a matching value through
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config

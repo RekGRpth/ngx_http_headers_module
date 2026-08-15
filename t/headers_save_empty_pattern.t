@@ -13,7 +13,6 @@ __DATA__
 (elts[j].data[elts[j].len - 1] used to read one byte before the argument
 buffer when elts[j].len == 0) and real patterns still match correctly
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config

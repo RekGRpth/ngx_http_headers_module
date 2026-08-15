@@ -12,7 +12,6 @@ __DATA__
 === TEST 1: headers_load with validation configured must deny (fail closed)
 when its variable is empty, not silently pass the request through
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config
@@ -30,7 +29,6 @@ GET /test
 === TEST 2: control - without a key/value pattern, an empty variable still
 just passes through (no validation was requested)
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config

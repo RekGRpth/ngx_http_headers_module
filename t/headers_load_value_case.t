@@ -12,7 +12,6 @@ __DATA__
 === TEST 1: headers_load value validation must be case-sensitive, matching
 HTTP header value semantics - a differently-cased value must be rejected
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config
@@ -31,7 +30,6 @@ GET /test
 
 === TEST 2: an exact-case match still passes
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config

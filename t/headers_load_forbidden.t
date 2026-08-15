@@ -12,7 +12,6 @@ __DATA__
 === TEST 1: failed headers_load validation must block the body, not just relabel
 the status code
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config
@@ -31,7 +30,6 @@ GET /test
 
 === TEST 2: matching headers_load validation still lets the response through
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config

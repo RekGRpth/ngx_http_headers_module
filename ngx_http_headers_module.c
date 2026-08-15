@@ -1,4 +1,3 @@
-#include <ndk.h>
 #include <ngx_http.h>
 
 typedef struct {
@@ -13,11 +12,11 @@ typedef struct {
 
 ngx_module_t ngx_http_headers_module;
 
-static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *val, void *data) {
+static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
-    ngx_array_t *a = (ngx_array_t *)data;
+    ngx_array_t *a = (ngx_array_t *) data;
     ngx_str_t *elts = a->elts;
-    val->len = 0;
+    size_t len = 0;
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
@@ -25,13 +24,14 @@ static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *va
                 ngx_flag_t wc = elts[j].len && elts[j].data[elts[j].len - 1] == '*';
                 size_t n = wc ? elts[j].len - 1 : elts[j].len;
                 if (header[i].value.len && (elts[j].len == header[i].key.len || (wc && header[i].key.len >= n)) && !ngx_strncasecmp(elts[j].data, header[i].key.data, n)) {
-                    val->len += sizeof(size_t) + header[i].key.len + sizeof(size_t) + header[i].value.len;
+                    len += sizeof(size_t) + header[i].key.len + sizeof(size_t) + header[i].value.len;
                 }
             }
         }
     }
-    if (!(val->data = ngx_pnalloc(r->pool, val->len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
-    u_char *p = val->data;
+    u_char *val_data;
+    if (!(val_data = ngx_pnalloc(r->pool, len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
+    u_char *p = val_data;
     for (ngx_list_part_t *part = &r->headers_in.headers.part; part; part = part->next) {
         ngx_table_elt_t *header = part->elts;
         for (ngx_uint_t i = 0; i < part->nelts; i++) {
@@ -48,12 +48,22 @@ static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *va
             }
         }
     }
-    if (p != val->data + val->len) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "p != val->data + val->len"); return NGX_ERROR; }
+    if (p != val_data + len) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "p != val_data + len"); return NGX_ERROR; }
+    v->data = val_data;
+    v->len = len;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
     return NGX_OK;
 }
 
 static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_str_t *elts = cf->args->elts;
+    if (elts[1].data[0] != '$') return "invalid variable name";
+    elts[1].len--;
+    elts[1].data++;
+    ngx_http_variable_t *var = ngx_http_add_variable(cf, &elts[1], NGX_HTTP_VAR_CHANGEABLE);
+    if (!var) return NGX_CONF_ERROR;
     ngx_array_t *data = ngx_array_create(cf->pool, cf->args->nelts - 2, sizeof(*elts));
     if (!data) return "!ngx_array_create";
     for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
@@ -61,8 +71,9 @@ static char *ngx_http_headers_save_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
         if (!str) return "!ngx_array_push";
         *str = elts[i];
     }
-    ndk_set_var_t filter = {NDK_SET_VAR_DATA, ngx_http_headers_save_func, 0, data};
-    return ndk_set_var_core(cf, &elts[1], &filter);
+    var->get_handler = ngx_http_headers_save_func;
+    var->data = (uintptr_t) data;
+    return NGX_CONF_OK;
 }
 
 static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {

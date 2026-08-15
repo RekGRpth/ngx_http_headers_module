@@ -1,8 +1,5 @@
 ## Module:
 
-Requires [ngx_devel_kit](https://github.com/vision5/ngx_devel_kit) to be added to the build
-*before* this module (see `config`).
-
 ### Directives:
 
     Syntax:  headers_save $var name [name ...];
@@ -37,10 +34,10 @@ all. Note that any upstream already contacted via `proxy_pass` and similar still
 request; only what reaches the client is replaced.
 
 A location that doesn't declare its own `headers_load` inherits both the referenced `$var` and,
-if present, the `key`/`value` gate from the nearest enclosing location that does. `headers_save`
-does not inherit this way: it only takes effect for the exact location it's declared in (or an
-ancestor location that ends up handling the request directly), so redeclare it in a child
-location if that location's own headers need to be captured.
+if present, the `key`/`value` gate from the nearest enclosing location that does. `$var` itself is
+an ordinary nginx variable, evaluated lazily wherever it's first referenced, so `headers_save`
+doesn't need to be redeclared in every location that ends up using it — declaring it once, e.g.
+alongside `headers_load`, is enough.
 
 ### Example:
 

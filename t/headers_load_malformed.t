@@ -13,7 +13,6 @@ __DATA__
 actual variable data (e.g. because $x wasn't produced by headers_save) must
 discard the record instead of trusting the length for later use
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config eval

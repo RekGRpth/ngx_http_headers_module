@@ -13,7 +13,6 @@ __DATA__
 through headers_save/headers_load instead of desyncing the length-prefixed
 record parsing
 --- main_config
-    load_module /etc/nginx/modules/ndk_http_module.so;
     load_module /etc/nginx/modules/ngx_http_echo_module.so;
     load_module /etc/nginx/modules/ngx_http_headers_module.so;
 --- config
