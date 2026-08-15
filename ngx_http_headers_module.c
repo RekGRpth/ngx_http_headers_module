@@ -137,7 +137,7 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
         if (location->key.len && location->key.len == key.len && !ngx_strncasecmp(location->key.data, key.data, key.len)) {
             ngx_str_t v;
             if (ngx_http_complex_value(r, &location->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
-            if (v.len == value.len && !ngx_strncasecmp(value.data, v.data, v.len)) rc = NGX_OK;
+            if (v.len == value.len && !ngx_strncmp(value.data, v.data, v.len)) rc = NGX_OK;
         }
     }
     if (rc != NGX_OK) return NGX_HTTP_FORBIDDEN;
