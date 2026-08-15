@@ -104,6 +104,8 @@ static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_http_headers_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_headers_module);
     if (!location->header) return ngx_http_next_header_filter(r);
+    if (ngx_http_get_module_ctx(r, ngx_http_headers_module)) return ngx_http_next_header_filter(r);
+    ngx_http_set_ctx(r, (void *) 1, ngx_http_headers_module);
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location->header);
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
@@ -130,7 +132,7 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
             if (v.len == value.len && !ngx_strncasecmp(value.data, v.data, v.len)) rc = NGX_OK;
         }
     }
-    if (rc != NGX_OK) r->headers_out.status = NGX_HTTP_FORBIDDEN;
+    if (rc != NGX_OK) return NGX_HTTP_FORBIDDEN;
     return ngx_http_next_header_filter(r);
 }
 
