@@ -112,36 +112,37 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_http_set_ctx(r, (void *) 1, ngx_http_headers_module);
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location->header);
-    if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
-    u_char *end = header->data + header->len;
-    for (u_char *p = header->data; (size_t) (end - p) > sizeof(size_t); ) {
-        size_t len;
-        ngx_memcpy(&len, p, sizeof(size_t));
-        p += sizeof(size_t);
-        if (len > (size_t) (end - p)) break;
-        ngx_str_t key = {len, p};
-        p += len;
-        if ((size_t) (end - p) <= sizeof(size_t)) break;
-        ngx_memcpy(&len, p, sizeof(size_t));
-        p += sizeof(size_t);
-        if (len > (size_t) (end - p)) break;
-        ngx_str_t value = {len, p};
-        p += len;
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
-        ngx_table_elt_t *table_elt = ngx_list_push(&r->headers_in.headers);
-        if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_list_push"); return NGX_ERROR; }
-        table_elt->key = key;
-        table_elt->value = value;
-        table_elt->hash = 1;
-        table_elt->next = NULL;
-        if (!(table_elt->lowcase_key = ngx_pnalloc(r->pool, key.len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
-        ngx_strlow(table_elt->lowcase_key, key.data, key.len);
-        if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
-        if (location->key.len && location->key.len == key.len && !ngx_strncasecmp(location->key.data, key.data, key.len)) {
-            ngx_str_t v;
-            if (ngx_http_complex_value(r, &location->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
-            if (v.len == value.len && !ngx_strncmp(value.data, v.data, v.len)) rc = NGX_OK;
+    if (header && header->data && header->len) {
+        u_char *end = header->data + header->len;
+        for (u_char *p = header->data; (size_t) (end - p) > sizeof(size_t); ) {
+            size_t len;
+            ngx_memcpy(&len, p, sizeof(size_t));
+            p += sizeof(size_t);
+            if (len > (size_t) (end - p)) break;
+            ngx_str_t key = {len, p};
+            p += len;
+            if ((size_t) (end - p) <= sizeof(size_t)) break;
+            ngx_memcpy(&len, p, sizeof(size_t));
+            p += sizeof(size_t);
+            if (len > (size_t) (end - p)) break;
+            ngx_str_t value = {len, p};
+            p += len;
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
+            ngx_table_elt_t *table_elt = ngx_list_push(&r->headers_in.headers);
+            if (!table_elt) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_list_push"); return NGX_ERROR; }
+            table_elt->key = key;
+            table_elt->value = value;
+            table_elt->hash = 1;
+            table_elt->next = NULL;
+            if (!(table_elt->lowcase_key = ngx_pnalloc(r->pool, key.len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
+            ngx_strlow(table_elt->lowcase_key, key.data, key.len);
+            if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
+            if (location->key.len && location->key.len == key.len && !ngx_strncasecmp(location->key.data, key.data, key.len)) {
+                ngx_str_t v;
+                if (ngx_http_complex_value(r, &location->value, &v) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
+                if (v.len == value.len && !ngx_strncmp(value.data, v.data, v.len)) rc = NGX_OK;
+            }
         }
     }
     if (rc != NGX_OK) return NGX_HTTP_FORBIDDEN;
