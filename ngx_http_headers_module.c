@@ -130,6 +130,9 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
         table_elt->key = key;
         table_elt->value = value;
         table_elt->hash = 1;
+        table_elt->next = NULL;
+        if (!(table_elt->lowcase_key = ngx_pnalloc(r->pool, key.len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
+        ngx_strlow(table_elt->lowcase_key, key.data, key.len);
         if (key.len == sizeof("Authorization") - 1 && !ngx_strncasecmp(key.data, (u_char *)"Authorization", sizeof("Authorization") - 1)) r->headers_in.authorization = table_elt;
         if (location->key.len && location->key.len == key.len && !ngx_strncasecmp(location->key.data, key.data, key.len)) {
             ngx_str_t v;
