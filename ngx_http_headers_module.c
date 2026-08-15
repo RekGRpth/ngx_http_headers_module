@@ -39,9 +39,9 @@ static ngx_int_t ngx_http_headers_save_func(ngx_http_request_t *r, ngx_str_t *va
                 ngx_flag_t wc = elts[j].len && elts[j].data[elts[j].len - 1] == '*';
                 size_t n = wc ? elts[j].len - 1 : elts[j].len;
                 if (header[i].value.len && (elts[j].len == header[i].key.len || (wc && header[i].key.len >= n)) && !ngx_strncasecmp(elts[j].data, header[i].key.data, n)) {
-                    *(size_t *)p = header[i].key.len;
+                    ngx_memcpy(p, &header[i].key.len, sizeof(size_t));
                     p = ngx_copy(p + sizeof(size_t), header[i].key.data, header[i].key.len);
-                    *(size_t *)p = header[i].value.len;
+                    ngx_memcpy(p, &header[i].value.len, sizeof(size_t));
                     p = ngx_copy(p + sizeof(size_t), header[i].value.data, header[i].value.len);
                     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header[%d] = %V:%V", i, &header[i].key, &header[i].value);
                 }
@@ -115,11 +115,12 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
     for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
-        size_t len = *(size_t *)p;
+        size_t len;
+        ngx_memcpy(&len, p, sizeof(size_t));
         p += sizeof(size_t);
         ngx_str_t key = {len, p};
         if ((p += len) >= header->data + header->len - sizeof(size_t)) break;
-        len = *(size_t *)p;
+        ngx_memcpy(&len, p, sizeof(size_t));
         p += sizeof(size_t);
         ngx_str_t value = {len, p};
         p += len;
