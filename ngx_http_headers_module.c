@@ -114,14 +114,18 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     ngx_http_variable_value_t *header = ngx_http_get_indexed_variable(r, location->header);
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
-    for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
+    u_char *end = header->data + header->len;
+    for (u_char *p = header->data; (size_t) (end - p) > sizeof(size_t); ) {
         size_t len;
         ngx_memcpy(&len, p, sizeof(size_t));
         p += sizeof(size_t);
+        if (len > (size_t) (end - p)) break;
         ngx_str_t key = {len, p};
-        if ((p += len) >= header->data + header->len - sizeof(size_t)) break;
+        p += len;
+        if ((size_t) (end - p) <= sizeof(size_t)) break;
         ngx_memcpy(&len, p, sizeof(size_t));
         p += sizeof(size_t);
+        if (len > (size_t) (end - p)) break;
         ngx_str_t value = {len, p};
         p += len;
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "header = %V:%V", &key, &value);
