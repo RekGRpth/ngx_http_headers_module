@@ -111,11 +111,11 @@ static ngx_int_t ngx_http_headers_filter(ngx_http_request_t *r) {
     if (!header || !header->data || !header->len) return ngx_http_next_header_filter(r);
     ngx_int_t rc = location->key.len ? NGX_HTTP_FORBIDDEN : NGX_OK;
     for (u_char *p = header->data; p < header->data + header->len - sizeof(size_t); ) {
-        size_t len = ((*(size_t *)p) << 48) >> 48;
+        size_t len = *(size_t *)p;
         p += sizeof(size_t);
         ngx_str_t key = {len, p};
         if ((p += len) >= header->data + header->len - sizeof(size_t)) break;
-        len = ((*(size_t *)p) << 48) >> 48;
+        len = *(size_t *)p;
         p += sizeof(size_t);
         ngx_str_t value = {len, p};
         p += len;
