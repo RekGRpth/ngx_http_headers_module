@@ -70,6 +70,8 @@ static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     if (index == NGX_ERROR) return "invalid variable";
     ngx_http_headers_location_t *location = conf;
     location->header = (ngx_uint_t) index;
+    ngx_http_headers_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_headers_module);
+    main->enable = 1;
     if (cf->args->nelts <= 2) return NGX_CONF_OK;
     location->key = elts[2];
     ngx_http_compile_complex_value_t ccv;
@@ -78,8 +80,6 @@ static char *ngx_http_headers_load_conf(ngx_conf_t *cf, ngx_command_t *cmd, void
     ccv.value = &elts[3];
     ccv.complex_value = &location->value;
     if (ngx_http_compile_complex_value(&ccv) != NGX_OK) return "ngx_http_compile_complex_value != NGX_OK";
-    ngx_http_headers_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_headers_module);
-    main->enable = 1;
     return NGX_CONF_OK;
 }
 
