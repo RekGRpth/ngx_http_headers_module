@@ -1,0 +1,15 @@
+# editor backups
+ngx_http_headers_module.c.*
+
+# editor-local settings
+.vscode/
+
+# cppcheck output (see check.sh)
+check.err
+err.txt
+
+# core dumps
+core
+
+# Test::Nginx::Socket runtime dir
+t/servroot/
